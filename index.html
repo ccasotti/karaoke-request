@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Requête Karaoké</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #111;
+      color: white;
+      padding: 2rem;
+      max-width: 600px;
+      margin: auto;
+    }
+    select, input, button {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 1rem;
+      font-size: 1rem;
+    }
+    ul {
+      background: #222;
+      padding: 1rem;
+      border-radius: 8px;
+    }
+    li {
+      margin: 0.5rem 0;
+    }
+    #admin {
+      margin-top: 2rem;
+      border-top: 1px solid #444;
+      padding-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎤 Choisis ta chanson de karaoké</h1>
+  <p>Une seule chanson par personne, pas de doublons !</p>
+
+  <input type="text" id="username" placeholder="Ton prénom ou pseudo">
+  <select id="songSelect"></select>
+  <button onclick="submitChoice()">Je choisis !</button>
+
+  <h2>🎶 Chansons déjà choisies :</h2>
+  <ul id="chosenList"></ul>
+
+  <div id="admin">
+    <h3>🔧 Admin</h3>
+    <button onclick="resetForm()">♻️ Réinitialiser les choix</button>
+  </div>
+
+  <script>
+    const endpoint = "https://script.google.com/macros/s/AKfycbwwbcGBxks6bRnsFyOilsVXgZkxjL5OsIus5vGO5s4oRx4aNuPXJ6wcI9R19b-A76Q5jA/exec";
+
+    const allSongs = [
+      "Queen - Bohemian Rhapsody",
+      "Céline Dion - My Heart Will Go On",
+      "ABBA - Dancing Queen",
+      "Rammstein - Du Hast",
+      "Oasis - Wonderwall",
+      "Eminem - Lose Yourself",
+      "Britney Spears - Toxic",
+      "Indochine - L'Aventurier",
+      "Mika - Relax Take It Easy",
+      "Lady Gaga - Bad Romance"
+    ];
+
+    let chosen = {}; // chanson => prénom
+
+    const select = document.getElementById('songSelect');
+    const list = document.getElementById('chosenList');
+
+    function refreshUI() {
+      // Refresh Select
+      select.innerHTML = '';
+      allSongs.forEach(song => {
+        if (!chosen[song]) {
+          const opt = document.createElement('option');
+          opt.value = song;
+          opt.textContent = song;
+          select.appendChild(opt);
+        }
+      });
+
+      // Refresh Chosen list
+      list.innerHTML = '';
+      const entries = Object.entries(chosen);
+      if (entries.length === 0) {
+        const li = document.createElement('li');
+        li.textContent = "(Aucun choix enregistré pour l'instant)";
+        list.appendChild(li);
+      } else {
+        entries.forEach(([song, name]) => {
+          const li = document.createElement('li');
+          li.textContent = `${name} → ${song}`;
+          list.appendChild(li);
+        });
+      }
+    }
+
+    async function fetchChoices() {
+      try {
+        const res = await fetch(endpoint);
+        const data = await res.json();
+        chosen = {};
+        data.forEach(([name, song]) => {
+          chosen[song] = name;
+        });
+      } catch (e) {
+        console.error("Erreur récupération données:", e);
+        chosen = {};
+      }
+      refreshUI();
+    }
+
+    async function submitChoice() {
+      const name = document.getElementById('username').value.trim();
+      const song = select.value;
+      if (!name || !song) {
+        alert("Merci d'indiquer ton nom et de choisir une chanson.");
+        return;
+      }
+      const params = new URLSearchParams({ name, song });
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        body: params
+      });
+      const text = await res.text();
+      if (text === "Success") {
+        alert("🎉 C'est noté !");
+        document.getElementById('username').value = '';
+        fetchChoices();
+      } else {
+        alert("⛔ " + text);
+      }
+    }
+
+    async function resetForm() {
+      const yes = confirm("Tu es sûr de vouloir tout réinitialiser ?");
+      if (!yes) return;
+      await fetch(endpoint + "?reset=1");
+      fetchChoices();
+    }
+
+    fetchChoices();
+  </script>
+</body>
+</html>
